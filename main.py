@@ -1,81 +1,100 @@
 #!/usr/bin/env python3
+"""Terminal letter rain with keyboard-selectable color themes."""
+
 import curses
 import random
 import time
 
-# Characters used in the falling rain effect.
 CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@%&*+=?"
+THEMES = [
+    ("Matrix green", curses.COLOR_GREEN),
+    ("Cyber cyan", curses.COLOR_CYAN),
+    ("Neon magenta", curses.COLOR_MAGENTA),
+    ("Classic white", curses.COLOR_WHITE),
+]
 
 
 def init_colors():
+    if not curses.has_colors():
+        return
     curses.start_color()
-    curses.use_default_colors()
-    curses.init_pair(1, curses.COLOR_GREEN, -1)
-    curses.init_pair(2, curses.COLOR_BLACK, -1)
+    try:
+        curses.use_default_colors()
+    except curses.error:
+        pass
+    for pair, (_, color) in enumerate(THEMES, start=1):
+        try:
+            curses.init_pair(pair, color, -1)
+        except curses.error:
+            curses.init_pair(pair, color, curses.COLOR_BLACK)
+
+
+def make_columns(height, width):
+    return [
+        {
+            "y": random.randint(-height, height),
+            "speed": random.randint(1, 3),
+            "trail": random.randint(6, 18),
+        }
+        for _ in range(width)
+    ]
 
 
 def rain(stdscr):
     curses.curs_set(0)
-    stdscr.nodelay(True)
     stdscr.keypad(True)
+    stdscr.nodelay(True)
     init_colors()
 
+    theme = 0
     slow_mode = False
+    old_size = None
     columns = []
 
-    def reset_columns():
-        nonlocal columns
-        h, w = stdscr.getmaxyx()
-        columns = [
-            {
-                "x": x,
-                "y": random.randint(-h, h),
-                "speed": random.randint(1, 3),
-                "trail": random.randint(7, 18),
-                "chars": [random.choice(CHARSET) for _ in range(random.randint(4, 12))],
-            }
-            for x in range(w)
-        ]
-
-    reset_columns()
-
     while True:
+        height, width = stdscr.getmaxyx()
+        if (height, width) != old_size:
+            columns = make_columns(height, width)
+            old_size = (height, width)
+
         stdscr.erase()
-        h, w = stdscr.getmaxyx()
-
-        ch = stdscr.getch()
-        if ch in (ord("q"), ord("Q"), 27):
+        key = stdscr.getch()
+        if key in (ord("q"), ord("Q"), 27):
             break
-        if ch in (ord("s"), ord("S")):
+        if key in (ord("c"), ord("C")):
+            theme = (theme + 1) % len(THEMES)
+        elif key in (ord("s"), ord("S")):
             slow_mode = not slow_mode
-        if ch in (ord("r"), ord("R")):
-            reset_columns()
+        elif key in (ord("r"), ord("R")):
+            columns = make_columns(height, width)
 
-        for col in columns:
-            x = col["x"]
-            y = col["y"]
-            trail = col["trail"]
+        color = curses.color_pair(theme + 1) if curses.has_colors() else curses.A_NORMAL
+        for x, column in enumerate(columns):
+            head_y = column["y"]
+            for offset in range(column["trail"]):
+                y = head_y - offset
+                if 0 <= y < height and 0 <= x < width:
+                    attr = color | (curses.A_BOLD if offset == 0 else curses.A_DIM if offset > column["trail"] // 2 else 0)
+                    try:
+                        stdscr.addch(y, x, random.choice(CHARSET), attr)
+                    except curses.error:
+                        pass
 
-            # Draw trail.
-            for offset in range(trail):
-                cy = y - offset
-                if 0 <= cy < h and 0 <= x < w:
-                    if offset == 0:
-                        attr = curses.color_pair(1) | curses.A_BOLD
-                        stdscr.addstr(cy, x, random.choice(CHARSET), attr)
-                    else:
-                        attr = curses.color_pair(1)
-                        stdscr.addstr(cy, x, random.choice(CHARSET), attr)
+            column["y"] += column["speed"]
+            if column["y"] > height + column["trail"]:
+                column.update(
+                    y=random.randint(-height, 0),
+                    speed=random.randint(1, 3),
+                    trail=random.randint(6, 18),
+                )
 
-            # Advance column.
-            col["y"] += col["speed"]
-            if col["y"] > h + trail:
-                col["y"] = random.randint(-h, 0)
-                col["speed"] = random.randint(1, 3)
-                col["trail"] = random.randint(7, 18)
-
+        status = f" {THEMES[theme][0]} | C color  S speed  R reset  Q quit "
+        try:
+            stdscr.addnstr(0, 0, status, max(0, width - 1), curses.A_REVERSE)
+        except curses.error:
+            pass
         stdscr.refresh()
-        time.sleep(0.03 if not slow_mode else 0.08)
+        time.sleep(0.08 if slow_mode else 0.035)
 
 
 def main():
