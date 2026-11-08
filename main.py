@@ -5,7 +5,7 @@ import curses
 import random
 import time
 
-CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@%&*+=?"
+CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@%&*+=?<>^|\\/"
 THEMES = [
     ("Matrix green", curses.COLOR_GREEN),
     ("Cyber cyan", curses.COLOR_CYAN),

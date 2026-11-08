@@ -5,7 +5,7 @@
 #include <time.h>
 
 #define THEME_COUNT 4
-#define CHARSET "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@%&*+=?"
+#define CHARSET "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@%&*+=?<>^|\\/"
 
 typedef struct {
     int y;
